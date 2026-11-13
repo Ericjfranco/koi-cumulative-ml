@@ -1,0 +1,90 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: koi_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-exoplanets}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-exoplanets}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  etl:
+    build: .
+    container_name: koi_etl
+    env_file: [.env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: ["python", "-m", "src.main"]
+    profiles: ["etl"]
+
+  gold:
+    build: .
+    env_file: [.env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["python", "-m", "src.gold"]
+    profiles: ["analytics"]
+
+  mlflow:
+    build: .
+    container_name: koi_mlflow
+    command: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--allowed-hosts", "mlflow:5000,localhost:5000,127.0.0.1:5000", "--backend-store-uri", "sqlite:////mlflow/mlflow.db", "--artifacts-destination", "/mlartifacts"]
+    ports: ["5000:5000"]
+    volumes:
+      - mlflow_data:/mlflow
+      - mlflow_artifacts:/mlartifacts
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    profiles: ["ml"]
+
+  trainer:
+    build: .
+    env_file: [.env]
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_healthy
+    volumes:
+      - ./reports:/app/reports
+    command: ["python", "-m", "ml.train"]
+    profiles: ["ml"]
+
+  dashboard:
+    build: .
+    env_file: [.env]
+    environment:
+      REPORTS_DIR: /app/reports
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports: ["8501:8501"]
+    volumes:
+      - ./reports:/app/reports
+    command: ["streamlit", "run", "dashboard/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    profiles: ["analytics"]
+
+volumes:
+  postgres_data:
+  mlflow_data:
+  mlflow_artifacts:
