@@ -72,7 +72,7 @@ A camada Gold é reconstruída a partir da Silver com `python -m src.gold`. Os c
 
 ## Problema de Machine Learning
 
-**Classificação multiclasse:** O objetivo é prever os KOI(Kepler Object of Interest) que são exoplanetas, na base sendo considetado como `CONFIRMED`, na coluna `koi_disposition` com as classes sendo:
+**Classificação multiclasse:** O objetivo é prever os KOI(Kepler Object of Interest) que são exoplanetas, sendo considerado como `CONFIRMED`, na coluna `koi_disposition` com as classes sendo:
 
 - `CONFIRMED`
 - `CANDIDATE`

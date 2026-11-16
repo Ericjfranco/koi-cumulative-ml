@@ -76,5 +76,5 @@ if comparison_path.exists():
 else:
     st.info('Ainda não há resultados. Execute `docker compose run --rm trainer` para treinar e comparar os modelos.')
 
-st.subheader('Amostra dos dados Gold')
+st.subheader('Amostra dos dados')
 st.dataframe(df.head(100), use_container_width=True)
